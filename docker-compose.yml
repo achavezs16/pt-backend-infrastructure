@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Base de datos para ms-productos (antes ms-pedidos)
+  mysql-productos:
+    image: mysql:8.0
+    container_name: pymetrack-mysql-productos
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ms_productos
+      MYSQL_USER: pymetrack
+      MYSQL_PASSWORD: pymetrack123
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql_productos_data:/var/lib/mysql
+      - ./mysql/productos/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pymetrack-network
+    restart: unless-stopped
+
+  # Base de datos para ms-pedidos (fusion de ms-envios + ms-notificaciones)
+  mysql-pedidos:
+    image: mysql:8.0
+    container_name: pymetrack-mysql-pedidos
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ms_pedidos
+      MYSQL_USER: pymetrack
+      MYSQL_PASSWORD: pymetrack123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_pedidos_data:/var/lib/mysql
+      - ./mysql/pedidos/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pymetrack-network
+    restart: unless-stopped
+
+  # Base de datos para ms-user (unificado ms-auth + ms-admin)
+  mysql-user:
+    image: mysql:8.0
+    container_name: pymetrack-mysql-user
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ms_user
+      MYSQL_USER: pymetrack
+      MYSQL_PASSWORD: pymetrack123
+    ports:
+      - "3313:3306"
+    volumes:
+      - mysql_user_data:/var/lib/mysql
+      - ./mysql/user/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pymetrack-network
+    restart: unless-stopped
+
+  # RabbitMQ para comunicación asíncrona
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: pymetrack-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    networks:
+      - pymetrack-network
+    restart: unless-stopped
+
+  # Redis para caché y sesiones (opcional para MVP)
+  redis:
+    image: redis:7-alpine
+    container_name: pymetrack-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pymetrack-network
+    restart: unless-stopped
+
+  # PhpMyAdmin para administración de bases de datos
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: pymetrack-phpmyadmin
+    environment:
+      PMA_HOSTS_CONFIGURABLE: servers
+    ports:
+      - "8080:80"
+    volumes:
+      - ./phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+    networks:
+      - pymetrack-network
+    depends_on:
+      - mysql-productos
+      - mysql-pedidos
+      - mysql-user
+    restart: unless-stopped
+
+volumes:
+  mysql_productos_data:
+  mysql_pedidos_data:
+  mysql_user_data:
+  rabbitmq_data:
+  redis_data:
+
+networks:
+  pymetrack-network:
+    driver: bridge
