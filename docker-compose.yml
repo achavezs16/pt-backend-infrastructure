@@ -14,7 +14,6 @@ services:
       - "3309:3306"
     volumes:
       - mysql_productos_data:/var/lib/mysql
-      - ./mysql/productos/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - pymetrack-network
     restart: unless-stopped
@@ -32,7 +31,6 @@ services:
       - "3307:3306"
     volumes:
       - mysql_pedidos_data:/var/lib/mysql
-      - ./mysql/pedidos/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - pymetrack-network
     restart: unless-stopped
@@ -50,7 +48,6 @@ services:
       - "3313:3306"
     volumes:
       - mysql_user_data:/var/lib/mysql
-      - ./mysql/user/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - pymetrack-network
     restart: unless-stopped
