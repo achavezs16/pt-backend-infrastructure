@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Base de datos para ms-productos (antes ms-pedidos)
   mysql-productos:
     image: mysql:8.0
     container_name: pymetrack-mysql-productos
@@ -18,7 +17,6 @@ services:
       - pymetrack-network
     restart: unless-stopped
 
-  # Base de datos para ms-pedidos (fusion de ms-envios + ms-notificaciones)
   mysql-pedidos:
     image: mysql:8.0
     container_name: pymetrack-mysql-pedidos
@@ -35,7 +33,6 @@ services:
       - pymetrack-network
     restart: unless-stopped
 
-  # Base de datos para ms-user (unificado ms-auth + ms-admin)
   mysql-user:
     image: mysql:8.0
     container_name: pymetrack-mysql-user
@@ -52,7 +49,6 @@ services:
       - pymetrack-network
     restart: unless-stopped
 
-  # RabbitMQ para comunicación asíncrona
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: pymetrack-rabbitmq
@@ -70,7 +66,6 @@ services:
       - pymetrack-network
     restart: unless-stopped
 
-  # Redis para caché y sesiones (opcional para MVP)
   redis:
     image: redis:7-alpine
     container_name: pymetrack-redis
@@ -82,7 +77,6 @@ services:
       - pymetrack-network
     restart: unless-stopped
 
-  # PhpMyAdmin para administración de bases de datos
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: pymetrack-phpmyadmin
@@ -98,6 +92,82 @@ services:
       - mysql-productos
       - mysql-pedidos
       - mysql-user
+    restart: unless-stopped
+
+  ms-user:
+    build: ../backend/ms-user
+    container_name: ms-user
+    ports:
+      - "8085:8085"
+    networks:
+      - pymetrack-network
+    depends_on:
+      - mysql-user
+    restart: unless-stopped
+
+  ms-productos:
+    build: ../backend/ms-productos
+    container_name: ms-productos
+    ports:
+      - "8081:8081"
+    networks:
+      - pymetrack-network
+    depends_on:
+      - mysql-productos
+      - rabbitmq
+    restart: unless-stopped
+
+  ms-pedidos:
+    build: ../backend/ms-pedidos
+    container_name: ms-pedidos
+    ports:
+      - "8082:8082"
+    networks:
+      - pymetrack-network
+    depends_on:
+      - mysql-pedidos
+      - rabbitmq
+    restart: unless-stopped
+
+  ms-notificaciones:
+    build: ../backend/ms-notificaciones
+    container_name: ms-notificaciones
+    environment:
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME} 
+      SENDGRID_ENABLED: "true"   
+    networks:
+      - pymetrack-network
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+
+  ms-bff:
+    build: ../backend/ms-bff
+    container_name: ms-bff
+    ports:
+      - "8084:8084"
+    networks:
+      - pymetrack-network
+    depends_on:
+      - ms-user
+      - ms-productos
+      - ms-pedidos
+    restart: unless-stopped
+
+  ms-gateway:
+    build: ../backend/ms-gateway
+    container_name: ms-gateway
+    ports:
+      - "8086:8086"
+    networks:
+      - pymetrack-network
+    depends_on:
+      - ms-bff
+      - ms-user
+      - ms-productos
+      - ms-pedidos
     restart: unless-stopped
 
 volumes:
